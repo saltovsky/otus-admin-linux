@@ -161,5 +161,3 @@ Consistency Policy : resync
        1       8       32        1      active sync   /dev/sdc
        2       8       48        2      active sync   /dev/sdd
        4       8       64        3      active sync   /dev/sde
-
-#RAID5 Восстановлен
