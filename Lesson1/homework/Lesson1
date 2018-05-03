@@ -1,0 +1,104 @@
+======Задание сборка ядра и запуск с использованием нового ядра===========
+
+# Ставим необходимые пакеты
+
+yum install gcc bison flex elfutils-libelf-devel bc libssl-dev openssl-devel perl -y
+
+
+# Проверяем какой ядро имеем на данный момент
+uname -sr
+
+Linux 3.10.0-693.21.1.el7.x86_64
+
+# Скачиваем последнее стабильное ядро в папку /root/kernels
+
+wget https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-4.16.7.tar.xz
+
+# Разархивируем
+tar -xf linux*
+
+#Проверяем 
+[root@otuslinux kernels]# ls -la
+total 100616
+drwxr-xr-x.  3 root root        53 May  3 11:19 .
+dr-xr-x---.  4 root root       164 May  3 10:52 ..
+drwxrwxr-x. 25 root root      4096 May  1 19:47 linux-4.16.7
+-rw-r--r--.  1 root root 103026252 May  2 15:04 linux-4.16.7.tar.xz
+
+[root@otuslinux kernels]# ls -la ./linux-4.16.7
+total 756
+drwxrwxr-x.  25 root root   4096 May  1 19:47 .
+drwxr-xr-x.   3 root root     53 May  3 11:19 ..
+drwxrwxr-x.  33 root root   4096 May  1 19:47 arch
+drwxrwxr-x.   3 root root   4096 May  1 19:47 block
+drwxrwxr-x.   2 root root    200 May  1 19:47 certs
+-rw-rw-r--.   1 root root     59 May  1 19:47 .cocciconfig
+-rw-rw-r--.   1 root root  18693 May  1 19:47 COPYING
+-rw-rw-r--.   1 root root  98556 May  1 19:47 CREDITS
+drwxrwxr-x.   4 root root   4096 May  1 19:47 crypto
+drwxrwxr-x. 124 root root   8192 May  1 19:47 Documentation
+drwxrwxr-x. 136 root root   4096 May  1 19:47 drivers
+drwxrwxr-x.   2 root root     40 May  1 19:47 firmware
+drwxrwxr-x.  73 root root   4096 May  1 19:47 fs
+-rw-rw-r--.   1 root root     31 May  1 19:47 .get_maintainer.ignore
+-rw-rw-r--.   1 root root     30 May  1 19:47 .gitattributes
+-rw-rw-r--.   1 root root   1571 May  1 19:47 .gitignore
+drwxrwxr-x.  27 root root   4096 May  1 19:47 include
+drwxrwxr-x.   2 root root    254 May  1 19:47 init
+drwxrwxr-x.   2 root root    213 May  1 19:47 ipc
+-rw-rw-r--.   1 root root   2245 May  1 19:47 Kbuild
+-rw-rw-r--.   1 root root    287 May  1 19:47 Kconfig
+drwxrwxr-x.  17 root root   4096 May  1 19:47 kernel
+drwxrwxr-x.  13 root root   8192 May  1 19:47 lib
+drwxrwxr-x.   5 root root     54 May  1 19:47 LICENSES
+-rw-rw-r--.   1 root root   9142 May  1 19:47 .mailmap
+-rw-rw-r--.   1 root root 446794 May  1 19:47 MAINTAINERS
+-rw-rw-r--.   1 root root  62082 May  1 19:47 Makefile
+drwxrwxr-x.   3 root root   4096 May  1 19:47 mm
+drwxrwxr-x.  68 root root   4096 May  1 19:47 net
+-rw-rw-r--.   1 root root    722 May  1 19:47 README
+drwxrwxr-x.  28 root root   4096 May  1 19:47 samples
+drwxrwxr-x.  14 root root   4096 May  1 19:47 scripts
+drwxrwxr-x.  10 root root    263 May  1 19:47 security
+drwxrwxr-x.  25 root root   4096 May  1 19:47 sound
+drwxrwxr-x.  31 root root   4096 May  1 19:47 tools
+drwxrwxr-x.   2 root root    102 May  1 19:47 usr
+drwxrwxr-x.   4 root root     44 May  1 19:47 virt
+
+
+# Скопируем текущий конфиг ядра в папку (создадим файл .config)
+
+cp /boot/config* /root/kernels/linux-4.16.7/.config
+
+# Скопируем всю папку в /usr/src/*
+
+cp -r /root/kernels/linux-4.16.7 /usr/src/
+
+[root@otuslinux src]# ls -la
+total 4
+drwxr-xr-x.  5 root root   54 May  3 11:30 .
+drwxr-xr-x. 13 root root  155 Apr  3 21:42 ..
+drwxr-xr-x.  2 root root    6 Nov  5  2016 debug
+drwxr-xr-x.  2 root root    6 Nov  5  2016 kernels
+drwxr-xr-x. 25 root root 4096 May  3 11:30 linux-4.16.7
+
+# Запускаем сборку с учетом текущего конфига
+make olddefconfig && make && make install && make modules_install >> /tmp/kernel_install.log
+
+# Далее необходимо в /etc/default/grub закомментировать #GRUB_DEFAULT=saved чтобы сразу загрузиться в новое ядро после перезагрузки. 
+
+vi /etc/default/grub
+
+GRUB_TIMEOUT=1
+GRUB_DISTRIBUTOR="$(sed 's, release .*$,,g' /etc/system-release)"
+#GRUB_DEFAULT=saved
+GRUB_DISABLE_SUBMENU=true
+GRUB_TERMINAL_OUTPUT="console"
+GRUB_CMDLINE_LINUX="no_timer_check console=tty0 console=ttyS0,115200n8 net.ifnames=0 biosdevname=0 crashkernel=auto rd.lvm.lv=VolGroup00/LogVol00 rd.lvm.lv=VolGroup00/LogVol01 rhgb quiet"
+GRUB_DISABLE_RECOVERY="true"
+
+
+#Далее применяем grub2-mkconfig -o /boot/grub2/grub.cfg и перезагружаемся
+
+grub2-mkconfig -o /boot/grub2/grub.cfg && reboot
+

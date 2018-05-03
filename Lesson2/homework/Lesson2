@@ -1,0 +1,165 @@
+=========Собрать RAID5============
+
+#Смотрим каие диски имеются
+fdisk -l
+
+#Создаем RAID5 из 4х дисков - /dev/md5
+mdadm --create /dev/md5 --level=5 --raid-devices=4 /dev/sdb /dev/sdc /dev/sdd /dev/sde
+
+
+#Проверяем
+mdadm -D /dev/md5
+
+[root@otuslinux vagrant]# mdadm -D /dev/md5
+/dev/md5:
+           Version : 1.2
+     Creation Time : Thu May  3 08:39:58 2018
+        Raid Level : raid5
+        Array Size : 764928 (747.00 MiB 783.29 MB)
+     Used Dev Size : 254976 (249.00 MiB 261.10 MB)
+      Raid Devices : 4
+     Total Devices : 4
+       Persistence : Superblock is persistent
+
+       Update Time : Thu May  3 08:49:33 2018
+             State : clean
+    Active Devices : 4
+   Working Devices : 4
+    Failed Devices : 0
+     Spare Devices : 0
+
+            Layout : left-symmetric
+        Chunk Size : 512K
+
+Consistency Policy : resync
+
+              Name : otuslinux:5  (local to host otuslinux)
+              UUID : aff9d6de:247f37e7:7753704c:bb7d7e37
+            Events : 18
+
+    Number   Major   Minor   RaidDevice State
+       0       8       16        0      active sync   /dev/sdb
+       1       8       32        1      active sync   /dev/sdc
+       2       8       48        2      active sync   /dev/sdd
+       4       8       64        3      active sync   /dev/sde
+
+
+# Добавляем в /etc/mdadm.conf
+mdadm --detail --scan > /etc/mdadm.conf
+
+# Создаем раздел Primary /dev/md5p1
+cfdisk /dev/md5 
+
+# Форматируем созданный раздел в файловую систему EXT4
+
+mkfs.ext4 /dev/md5p1
+
+#Создем папку в корне в которую будем монтировать RAID5
+mkdir /raid5
+
+# Монтируем RAID5 к папке /raid5
+
+mount /dev/md5p1 /raid5
+
+# Добавляем в FSTAB
+
+echo "/dev/md5p1      /raid5  ext4    defaults        0 0" >> /etc/fstab
+
+
+=========Задание сломать RAID5============
+
+# Помечаем один из дисков как поврежденный
+mdadm /dev/md5 -f /dev/sdb
+
+# И удаляем поврежденный диск
+mdadm /dev/md5 -r /dev/sdb
+
+# Проверяем командой mdadm -D /dev/md5
+mdadm -D /dev/md5
+
+# Результат State : clean, degraded
+[root@otuslinux vagrant]# mdadm -D /dev/md5
+/dev/md5:
+           Version : 1.2
+     Creation Time : Thu May  3 08:39:58 2018
+        Raid Level : raid5
+        Array Size : 764928 (747.00 MiB 783.29 MB)
+     Used Dev Size : 254976 (249.00 MiB 261.10 MB)
+      Raid Devices : 4
+     Total Devices : 3
+       Persistence : Superblock is persistent
+
+       Update Time : Thu May  3 10:19:04 2018
+             State : clean, degraded
+    Active Devices : 3
+   Working Devices : 3
+    Failed Devices : 0
+     Spare Devices : 0
+
+            Layout : left-symmetric
+        Chunk Size : 512K
+
+Consistency Policy : resync
+
+              Name : otuslinux:5  (local to host otuslinux)
+              UUID : aff9d6de:247f37e7:7753704c:bb7d7e37
+            Events : 21
+
+    Number   Major   Minor   RaidDevice State
+       -       0        0        0      removed
+       1       8       32        1      active sync   /dev/sdc
+       2       8       48        2      active sync   /dev/sdd
+       4       8       64        3      active sync   /dev/sde
+
+
+# Файлы не пропали
+[root@otuslinux vagrant]# ls -la /raid5/
+total 24
+drwxr-xr-x.  4 root root  4096 May  3 08:45 .
+dr-xr-xr-x. 19 root root   252 May  3 08:45 ..
+drwx------.  2 root root 16384 May  3 08:44 lost+found
+-rw-r--r--.  1 root root     0 May  3 08:45 test_file.txt
+drwxr-xr-x.  2 root root  4096 May  3 08:45 test_folder
+
+==========Заание восстановить RAID5 с помощью другого диска============
+
+# Восстанавливаем RAID5, добавим в RADE5 новый диск - Disk /dev/sdf
+
+mdadm /dev/md5 -a /dev/sdf
+
+# Результат - State : clean
+
+[root@otuslinux vagrant]# mdadm -D /dev/md5
+/dev/md5:
+           Version : 1.2
+     Creation Time : Thu May  3 08:39:58 2018
+        Raid Level : raid5
+        Array Size : 764928 (747.00 MiB 783.29 MB)
+     Used Dev Size : 254976 (249.00 MiB 261.10 MB)
+      Raid Devices : 4
+     Total Devices : 4
+       Persistence : Superblock is persistent
+
+       Update Time : Thu May  3 10:24:24 2018
+             State : clean
+    Active Devices : 4
+   Working Devices : 4
+    Failed Devices : 0
+     Spare Devices : 0
+
+            Layout : left-symmetric
+        Chunk Size : 512K
+
+Consistency Policy : resync
+
+              Name : otuslinux:5  (local to host otuslinux)
+              UUID : aff9d6de:247f37e7:7753704c:bb7d7e37
+            Events : 40
+
+    Number   Major   Minor   RaidDevice State
+       5       8       80        0      active sync   /dev/sdf
+       1       8       32        1      active sync   /dev/sdc
+       2       8       48        2      active sync   /dev/sdd
+       4       8       64        3      active sync   /dev/sde
+
+#RAID5 Восстановлен
