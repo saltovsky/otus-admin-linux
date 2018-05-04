@@ -2,7 +2,7 @@
 
 # Ставим необходимые пакеты
 
-yum install gcc bison flex elfutils-libelf-devel bc libssl-dev openssl-devel perl -y
+yum install gcc bison flex elfutils-libelf-devel bc libssl-dev openssl-devel perl wget -y
 
 
 # Проверяем какой ядро имеем на данный момент
